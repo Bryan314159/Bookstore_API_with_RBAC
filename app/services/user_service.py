@@ -8,7 +8,7 @@ from sqlalchemy import select
 from app.models.user import User
 from app.models.audit_log import AuditLog
 
-
+from app.core.security import verify_password, hash_password
 async def get_all_users(db: AsyncSession) -> list[User]:
     """返回所有用户列表（不含密码）"""
     result = await db.execute(select(User).order_by(User.id))
@@ -86,3 +86,23 @@ async def get_audit_logs(
 
     result = await db.execute(stmt)
     return result.scalars().all()
+
+
+async def change_user_password(
+    db: AsyncSession,
+    current_user: User,
+    old_password: str,
+    new_password: str,
+) -> None:
+    """普通用户修改自己的密码"""
+    from app.core.security import verify_password, hash_password
+    if not verify_password(old_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Old password is incorrect",
+        )
+    new_hashed = hash_password(new_password)
+    current_user.hashed_password = new_hashed
+    db.add(current_user)
+    await db.commit()
+    await db.refresh(current_user)

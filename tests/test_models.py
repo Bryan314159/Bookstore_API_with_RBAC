@@ -35,7 +35,7 @@ async def test_users_table_columns(test_engine):
         columns = await conn.run_sync(get_columns)
     
     required = {"id", "email", "hashed_password", "role", "is_active",
-                "refresh_token_version", "reset_token_jti", "reset_token_expires",
+                "refresh_token_version", "reset_token", "reset_token_expires",
                 "created_at", "updated_at"}
     assert required.issubset(columns), f"Missing columns in users: {required - columns}"
 

@@ -8,6 +8,7 @@ from app.schemas.user import PasswordChange, UserResponse
 from app.models.user import User
 from app.services.audit_service import log_action
 
+from app.services import user_service
 router = APIRouter(prefix="/users", tags=["users"])
 
 
@@ -16,7 +17,6 @@ async def get_me(current_user: User = Depends(get_current_active_user)):
     """U5: 返回当前登录用户的信息"""
     return current_user
 
-
 @router.post("/me/change-password")
 async def change_password(
     pw_data: PasswordChange,
@@ -24,18 +24,8 @@ async def change_password(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """U6: 修改密码，需提供正确的旧密码"""
-    if not verify_password(pw_data.old_password, current_user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Old password is incorrect",
-        )
-
-    new_hashed = hash_password(pw_data.new_password)
-    current_user.hashed_password = new_hashed
-    db.add(current_user)
-    await db.commit()
-    await db.refresh(current_user)
+    """U6: 修改密码"""
+    await user_service.change_user_password(db, current_user, pw_data.old_password, pw_data.new_password)
 
     background_tasks.add_task(
         log_action,
@@ -45,5 +35,4 @@ async def change_password(
         resource_id=current_user.id,
         description=f"User {current_user.email} changed password",
     )
-
     return {"message": "Password updated successfully."}
